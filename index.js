@@ -67,17 +67,71 @@ async function run() {
         //joined event
         app.post('/joinedEvent', async (req, res) => {
             const joinedData = req.body
-            console.log(joinedData)
+
             const result = await joinedEventcollection.insertOne(joinedData)
             res.send(result)
         })
 
-        // all joined event data
+        // my  joined event data
+        app.get('/myjoinedData', async (req, res) => {
+            const email = req.query.email
+            const query = { email }
+            const cursor = joinedEventcollection.find(query).sort({ date: 1 })
+            const result = await cursor.toArray()
+            res.send(result)
+        })
+
+        // all user joined event data
         app.get('/alljoinedData', async (req, res) => {
             const cursor = joinedEventcollection.find().sort({ date: 1 })
             const result = await cursor.toArray()
             res.send(result)
         })
+        // delete joined event data
+        app.delete('/joindata/:id', async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) }
+            const result = await joinedEventcollection.deleteOne(query)
+            res.send(result)
+        })
+
+        //update get
+        app.get('/getUpdate/:id', async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) }
+            const result = await joinedEventcollection.findOne(query)
+            res.send(result)
+            r
+        })
+
+
+
+        //update joinedevent data
+
+        app.patch('/joindata/:id', async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) }
+            const updateEvent = req.body
+
+            const update = {
+                $set: {
+                    title: updateEvent.title,
+                    date: updateEvent.date,
+                    eventType: updateEvent.eventType,
+                    photo: updateEvent.photo,
+                    location: updateEvent.location
+                }
+            }
+            const result = await joinedEventcollection.updateOne(query, update)
+            res.send(result)
+        })
+
+
+
+
+
+
+
 
 
 
