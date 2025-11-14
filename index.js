@@ -180,9 +180,9 @@ async function run() {
 
 
         //search api
-        app.get('/search', (req, res) => {
+        app.get('/search', async (req, res) => {
             const search = req.query.search
-            const result = eventcollection.find({ title: search }).toArray()
+            const result = await eventcollection.find({ title: { $regex: search, $options: 'i' } }).toArray()
             res.send(result)
         })
 
