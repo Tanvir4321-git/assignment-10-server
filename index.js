@@ -179,7 +179,12 @@ async function run() {
         })
 
 
-
+        //search api
+        app.get('/search', (req, res) => {
+            const search = req.query.search
+            const result = eventcollection.find({ title: search }).toArray()
+            res.send(result)
+        })
 
 
 
