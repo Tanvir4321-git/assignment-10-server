@@ -9,6 +9,42 @@ const port = process.env.PORT || 3000
 app.use(cors())
 app.use(express.json())
 
+// fireBase midleware for verify token
+
+const admin = require("firebase-admin");
+
+// index.js
+const decoded = Buffer.from(process.env.FIRE_BASE_KEY, "base64").toString("utf8");
+const serviceAccount = JSON.parse(decoded);
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+
+
+const fireBaseverify = async (req, res, next) => {
+    const authorization = req.headers.authorization
+    const token = authorization.split(' ')[1]
+    if (!authorization) {
+        res.status(401).send('headers not found')
+    }
+
+    try {
+        const decoded = await admin.auth().verifyIdToken(token)
+
+        req.token_email = decoded.email
+        next()
+
+    }
+    catch {
+        return res.status(401).send('unothorized')
+    }
+
+}
+
+
+
+
 //uri
 const uri = `mongodb+srv://${process.env.Db_user}:${process.env.Db_Pass}@first-mongobd-porject.tmjl5yc.mongodb.net/?appName=first-mongobd-porject`;
 
@@ -29,7 +65,7 @@ app.get('/', (req, res) => {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
+        // await client.connect();
         const db = client.db('social-event')
         const eventcollection = db.collection('all-event')
         const joinedEventcollection = db.collection('joined-event')
@@ -45,7 +81,7 @@ async function run() {
 
 
         //create event
-        app.post('/createEvent', async (req, res) => {
+        app.post('/createEvent', fireBaseverify, async (req, res) => {
             const createEvent = req.body
             if (createEvent.date) {
                 createEvent.date = new Date(createEvent.date);
@@ -65,33 +101,47 @@ async function run() {
         })
 
         //joined event
-        app.post('/joinedEvent', async (req, res) => {
+        app.post('/joinedEvent', fireBaseverify, async (req, res) => {
             const joinedData = req.body
+
+            const isExist = await joinedEventcollection.findOne({
+                email: joinedData.email,
+                title: joinedData.title
+            })
+
+            if (isExist) {
+                return res.status(409).send("Already joined this event")
+            }
 
             const result = await joinedEventcollection.insertOne(joinedData)
             res.send(result)
         })
 
-        // my  joined event data
-        app.get('/myjoinedData', async (req, res) => {
+        // my  create event data
+        app.get('/myjoinedData', fireBaseverify, async (req, res) => {
+            const email = req.query.email
+            const query = { email }
+            if (email !== req.token_email) {
+                res.status(401).send('token email not match')
+            }
+            const cursor = eventcollection.find(query).sort({ date: 1 })
+            const result = await cursor.toArray()
+            res.send(result)
+        })
+
+        // all  joined event data
+        app.get('/alljoinedData', async (req, res) => {
             const email = req.query.email
             const query = { email }
             const cursor = joinedEventcollection.find(query).sort({ date: 1 })
             const result = await cursor.toArray()
             res.send(result)
         })
-
-        // all user joined event data
-        app.get('/alljoinedData', async (req, res) => {
-            const cursor = joinedEventcollection.find().sort({ date: 1 })
-            const result = await cursor.toArray()
-            res.send(result)
-        })
         // delete joined event data
-        app.delete('/joindata/:id', async (req, res) => {
+        app.delete('/joindata/:id', fireBaseverify, async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
-            const result = await joinedEventcollection.deleteOne(query)
+            const result = await eventcollection.deleteOne(query)
             res.send(result)
         })
 
@@ -99,9 +149,9 @@ async function run() {
         app.get('/getUpdate/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
-            const result = await joinedEventcollection.findOne(query)
+            const result = await eventcollection.findOne(query)
             res.send(result)
-            r
+
         })
 
 
@@ -112,7 +162,9 @@ async function run() {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
             const updateEvent = req.body
-
+            if (updateEvent.date) {
+                updateEvent.date = new Date(updateEvent.date)
+            }
             const update = {
                 $set: {
                     title: updateEvent.title,
@@ -122,7 +174,7 @@ async function run() {
                     location: updateEvent.location
                 }
             }
-            const result = await joinedEventcollection.updateOne(query, update)
+            const result = await eventcollection.updateOne(query, update)
             res.send(result)
         })
 
@@ -136,8 +188,8 @@ async function run() {
 
 
 
-        await client.db("admin").command({ ping: 1 });
-        console.log("Pinged your deployment. You successfully connected to MongoDB!");
+        // await client.db("admin").command({ ping: 1 });
+        // console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
 
     }
