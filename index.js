@@ -71,6 +71,7 @@ async function run() {
         const joinedEventcollection = db.collection('joined-event')
 
         // upcoming event
+         // upcoming event
         app.get('/upcomingEvent', async (req, res) => {
             const today = new Date()
             const cursor = eventcollection.find({ date: { $gte: today } }).sort({ date: 1 })
@@ -78,6 +79,11 @@ async function run() {
             res.send(result)
         })
 
+   // all event data
+   app.get('/alleventdData',async (req,res)=>{
+    const result= await eventcollection.find().toArray()
+    res.send(result)
+   })
 
 
         //create event
@@ -117,6 +123,8 @@ async function run() {
             res.send(result)
         })
 
+      
+
         // my  create event data
         app.get('/myjoinedData', fireBaseverify, async (req, res) => {
             const email = req.query.email
@@ -129,7 +137,13 @@ async function run() {
             res.send(result)
         })
 
-        // all  joined event data
+          // all user joined data
+        app.get('/userjoiedData', async (req,res)=>{
+            const result= await joinedEventcollection.find().toArray()
+            res.send(result)
+        })
+
+        // my  joined event data
         app.get('/alljoinedData', async (req, res) => {
             const email = req.query.email
             const query = { email }
@@ -187,6 +201,61 @@ async function run() {
         })
 
 
+
+        //filter api
+        app.get('/filter', async (req, res) => {
+            const type = req.query.type
+            const result = await eventcollection.find({
+                eventType: type
+            }).toArray()
+            res.send(result)
+        })
+
+
+       
+     //sort api
+app.get('/sort', async (req, res) => {
+    try {
+        const sortvalue = req.query.sortvalue;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let daysToAdd;
+        
+        if (sortvalue === '7days') {
+            daysToAdd = 7;
+        } 
+        else if (sortvalue === '30days') {
+            daysToAdd = 30;
+        } 
+        else {
+            return res.status(400).send({ error: "Invalid sort value" });
+        }
+
+        let endDate = new Date(today);
+        endDate.setDate(endDate.getDate() + daysToAdd);
+        endDate.setHours(23, 59, 59, 999);
+
+        const query = {
+            date: {
+                $gte: today,
+                $lte: endDate
+            }
+        };
+
+        const result = await eventcollection
+            .find(query)
+            .sort({ date: 1 })
+            .toArray();
+
+        res.send(result);
+
+    } catch (error) {
+     
+        res.status(500).send({ error: "Server error" });
+    }
+});
 
 
 
